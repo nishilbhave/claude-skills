@@ -5,3 +5,4 @@ export declare function getClaudeMdPath(): string;
 export declare function getCommandsDir(): string;
 export declare function getBackupDir(): string;
 export declare function getSkillFilePath(dir: string): string | null;
+export declare function getProjectRegistryPath(): string | null;

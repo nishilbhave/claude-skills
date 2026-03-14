@@ -3,10 +3,11 @@ import fse from "fs-extra";
 import { getConfigPath } from "../utils/paths.js";
 
 export interface SkillsConfig {
-  inject_mode: "full" | "catalog";
+  inject_mode: "full" | "catalog" | "summary" | "reference";
   context_budget_kb: number;
   auto_sync: boolean;
   backup_count: number;
+  groups: Record<string, string[]>;
 }
 
 const defaults: SkillsConfig = {
@@ -14,6 +15,7 @@ const defaults: SkillsConfig = {
   context_budget_kb: 100,
   auto_sync: true,
   backup_count: 5,
+  groups: {},
 };
 
 export function readConfig(): SkillsConfig {

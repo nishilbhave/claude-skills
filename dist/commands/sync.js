@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import fse from "fs-extra";
+import { createTwoFilesPatch } from "diff";
 import { readRegistry, getActiveSkills } from "../core/registry.js";
 import { readConfig } from "../core/config.js";
 import { parseSkillFile } from "../core/skill.js";
@@ -9,7 +10,8 @@ import { injectSkills } from "../core/inject.js";
 import { syncCommands } from "../core/commands.js";
 import { getClaudeMdPath } from "../utils/paths.js";
 import * as print from "../utils/print.js";
-export async function syncAction() {
+export async function syncAction(options) {
+    const dryRun = options?.dryRun ?? false;
     const config = readConfig();
     const registry = readRegistry();
     const activeEntries = getActiveSkills(registry);
@@ -20,12 +22,19 @@ export async function syncAction() {
         if (fs.existsSync(claudeMdPath)) {
             const existing = fs.readFileSync(claudeMdPath, "utf-8");
             if (existing.includes("<!-- claude-skills:begin -->")) {
+                if (dryRun) {
+                    const updated = injectSkills(existing, [], config.inject_mode);
+                    const diff = createTwoFilesPatch("CLAUDE.md", "CLAUDE.md", existing, updated);
+                    console.log(diff);
+                    print.info("[dry-run] No files written.");
+                    return;
+                }
                 backupClaudeMd(config.backup_count);
                 const updated = injectSkills(existing, [], config.inject_mode);
                 fs.writeFileSync(claudeMdPath, updated, "utf-8");
             }
         }
-        syncCommands([]);
+        syncCommands([], { dryRun });
         return;
     }
     // Parse active skills from disk
@@ -44,7 +53,7 @@ export async function syncAction() {
         const budget = calculateBudget(skills.map((s) => s.content), config.context_budget_kb);
         if (budget.level === "red") {
             print.warn(budget.message);
-            print.info('Tip: Run claude-skills config --inject-mode catalog to reduce context usage.');
+            print.info("Tip: Run claude-skills config --inject-mode catalog to reduce context usage.");
         }
         else if (budget.level === "yellow") {
             print.warn(budget.message);
@@ -53,17 +62,33 @@ export async function syncAction() {
             print.info(budget.message);
         }
     }
-    // Backup CLAUDE.md
+    // Build new CLAUDE.md content
     const claudeMdPath = getClaudeMdPath();
-    const backupPath = backupClaudeMd(config.backup_count);
-    if (backupPath) {
-        print.dim(`  Backed up CLAUDE.md → ${backupPath}`);
-    }
-    // Inject skills into CLAUDE.md
     const existing = fs.existsSync(claudeMdPath)
         ? fs.readFileSync(claudeMdPath, "utf-8")
         : "";
     const updated = injectSkills(existing, skills, config.inject_mode);
+    if (dryRun) {
+        // Show diff
+        const diff = createTwoFilesPatch("CLAUDE.md", "CLAUDE.md", existing, updated);
+        console.log(diff);
+        // Show command changes without writing
+        const { created, removed } = syncCommands(skills, { dryRun: true });
+        if (created.length > 0) {
+            print.dim(`  Commands to create: ${created.join(", ")}`);
+        }
+        if (removed.length > 0) {
+            print.dim(`  Commands to remove: ${removed.join(", ")}`);
+        }
+        print.info("[dry-run] No files written.");
+        return;
+    }
+    // Backup CLAUDE.md
+    const backupPath = backupClaudeMd(config.backup_count);
+    if (backupPath) {
+        print.dim(`  Backed up CLAUDE.md → ${backupPath}`);
+    }
+    // Write CLAUDE.md
     fse.ensureDirSync(claudeMdPath.replace(/\/[^/]+$/, ""));
     fs.writeFileSync(claudeMdPath, updated, "utf-8");
     // Sync commands

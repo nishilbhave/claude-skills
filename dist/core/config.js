@@ -6,6 +6,7 @@ const defaults = {
     context_budget_kb: 100,
     auto_sync: true,
     backup_count: 5,
+    groups: {},
 };
 export function readConfig() {
     const configPath = getConfigPath();

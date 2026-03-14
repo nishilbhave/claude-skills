@@ -78,4 +78,51 @@ describe("injectSkills", () => {
     const second = injectSkills(first, skills, "full");
     expect(first).toBe(second);
   });
+
+  it("generates summary mode", () => {
+    const skill = makeSkill("alpha", "Alpha content");
+    skill.dirPath = "/home/user/.claude/skills/alpha";
+    const result = injectSkills("", [skill], "summary");
+    expect(result).toContain("### alpha (v1.0.0)");
+    expect(result).toContain("alpha description");
+    expect(result).toContain("Path: /home/user/.claude/skills/alpha");
+    // Summary mode should NOT include full content
+    expect(result).not.toContain("Alpha content");
+  });
+
+  it("reference mode strips existing block", () => {
+    const existing = [
+      "# Header",
+      "",
+      "<!-- claude-skills:begin -->",
+      "old content",
+      "<!-- claude-skills:end -->",
+      "",
+      "# Footer",
+    ].join("\n");
+
+    const result = injectSkills(
+      existing,
+      [makeSkill("test", "Test content")],
+      "reference"
+    );
+    expect(result).not.toContain("<!-- claude-skills:begin -->");
+    expect(result).not.toContain("old content");
+    expect(result).toContain("# Header");
+    expect(result).toContain("# Footer");
+  });
+
+  it("reference mode returns content as-is if no block exists", () => {
+    const existing = "# My Config\n\nSome content.\n";
+    const result = injectSkills(existing, [makeSkill("x", "X")], "reference");
+    expect(result).toBe(existing);
+  });
+
+  it("summary mode is idempotent", () => {
+    const skills = [makeSkill("alpha", "Alpha content")];
+    skills[0].dirPath = "/path/alpha";
+    const first = injectSkills("", skills, "summary");
+    const second = injectSkills(first, skills, "summary");
+    expect(first).toBe(second);
+  });
 });

@@ -1,16 +1,16 @@
 import fs from "node:fs";
 import fse from "fs-extra";
 import { getRegistryPath } from "../utils/paths.js";
-export function readRegistry() {
-    const regPath = getRegistryPath();
+export function readRegistry(registryPath) {
+    const regPath = registryPath || getRegistryPath();
     if (!fs.existsSync(regPath)) {
         return { version: "1", skills: [] };
     }
     const raw = fs.readFileSync(regPath, "utf-8");
     return JSON.parse(raw);
 }
-export function writeRegistry(registry) {
-    const regPath = getRegistryPath();
+export function writeRegistry(registry, registryPath) {
+    const regPath = registryPath || getRegistryPath();
     fse.ensureDirSync(regPath.replace(/\/[^/]+$/, ""));
     fs.writeFileSync(regPath, JSON.stringify(registry, null, 2) + "\n", "utf-8");
 }

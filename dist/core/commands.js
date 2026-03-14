@@ -10,22 +10,23 @@ function buildCommandFile(skill) {
 ${skill.content}
 `;
 }
-export function syncCommands(skills) {
+export function syncCommands(skills, options) {
     const commandsDir = getCommandsDir();
-    fse.ensureDirSync(commandsDir);
     const created = [];
     const removed = [];
-    // Write command files for active skills
     const activeNames = new Set();
     for (const skill of skills) {
         const name = skill.meta.command || skill.meta.name;
         activeNames.add(name);
-        const filePath = path.join(commandsDir, `${name}.md`);
-        const content = buildCommandFile(skill);
-        fs.writeFileSync(filePath, content, "utf-8");
         created.push(name);
+        if (!options?.dryRun) {
+            fse.ensureDirSync(commandsDir);
+            const filePath = path.join(commandsDir, `${name}.md`);
+            const content = buildCommandFile(skill);
+            fs.writeFileSync(filePath, content, "utf-8");
+        }
     }
-    // Remove managed command files for inactive skills
+    // Find managed command files to remove
     if (fs.existsSync(commandsDir)) {
         const files = fs.readdirSync(commandsDir);
         for (const file of files) {
@@ -36,9 +37,10 @@ export function syncCommands(skills) {
                 continue;
             const filePath = path.join(commandsDir, file);
             const content = fs.readFileSync(filePath, "utf-8");
-            // Only remove files we manage (have our marker)
             if (content.startsWith(MARKER_PREFIX)) {
-                fs.unlinkSync(filePath);
+                if (!options?.dryRun) {
+                    fs.unlinkSync(filePath);
+                }
                 removed.push(name);
             }
         }

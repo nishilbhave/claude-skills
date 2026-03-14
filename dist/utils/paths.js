@@ -33,4 +33,23 @@ export function getSkillFilePath(dir) {
         return lower;
     return null;
 }
+export function getProjectRegistryPath() {
+    const startDir = process.env.CLAUDE_SKILLS_PROJECT_DIR || process.cwd();
+    let current = path.resolve(startDir);
+    const homeDir = home;
+    while (current !== homeDir && current !== path.dirname(current)) {
+        // Stop at .git boundary
+        const gitDir = path.join(current, ".git");
+        const projectRegistry = path.join(current, ".claude", "skills.json");
+        if (fs.existsSync(projectRegistry)) {
+            return projectRegistry;
+        }
+        if (fs.existsSync(gitDir)) {
+            // Found git root — check here but don't go further
+            return null;
+        }
+        current = path.dirname(current);
+    }
+    return null;
+}
 //# sourceMappingURL=paths.js.map

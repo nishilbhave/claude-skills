@@ -11,8 +11,8 @@ export interface Registry {
     version: string;
     skills: RegistryEntry[];
 }
-export declare function readRegistry(): Registry;
-export declare function writeRegistry(registry: Registry): void;
+export declare function readRegistry(registryPath?: string): Registry;
+export declare function writeRegistry(registry: Registry, registryPath?: string): void;
 export declare function findSkill(registry: Registry, name: string): RegistryEntry | undefined;
 export declare function addSkill(registry: Registry, entry: RegistryEntry): Registry;
 export declare function removeSkill(registry: Registry, name: string): Registry;

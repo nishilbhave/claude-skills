@@ -17,8 +17,8 @@ export interface Registry {
   skills: RegistryEntry[];
 }
 
-export function readRegistry(): Registry {
-  const regPath = getRegistryPath();
+export function readRegistry(registryPath?: string): Registry {
+  const regPath = registryPath || getRegistryPath();
   if (!fs.existsSync(regPath)) {
     return { version: "1", skills: [] };
   }
@@ -26,10 +26,17 @@ export function readRegistry(): Registry {
   return JSON.parse(raw) as Registry;
 }
 
-export function writeRegistry(registry: Registry): void {
-  const regPath = getRegistryPath();
+export function writeRegistry(
+  registry: Registry,
+  registryPath?: string
+): void {
+  const regPath = registryPath || getRegistryPath();
   fse.ensureDirSync(regPath.replace(/\/[^/]+$/, ""));
-  fs.writeFileSync(regPath, JSON.stringify(registry, null, 2) + "\n", "utf-8");
+  fs.writeFileSync(
+    regPath,
+    JSON.stringify(registry, null, 2) + "\n",
+    "utf-8"
+  );
 }
 
 export function findSkill(

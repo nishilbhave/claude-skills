@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { readRegistry, writeRegistry, addSkill, findSkill, } from "../core/registry.js";
 import { parseSkillFile, validateSkill } from "../core/skill.js";
+import { addSkillToGroup } from "../core/groups.js";
 import { getSkillsDir } from "../utils/paths.js";
 import * as print from "../utils/print.js";
 export async function addAction(pathArg, options) {
@@ -45,6 +46,10 @@ function addSingleSkill(registry, skillPath) {
     };
     addSkill(registry, entry);
     writeRegistry(registry);
+    // Auto-assign group from skill metadata
+    if (parsed.meta.group) {
+        addSkillToGroup(parsed.meta.group, parsed.meta.name);
+    }
     if (existing) {
         print.success(`Updated "${parsed.meta.name}".`);
     }

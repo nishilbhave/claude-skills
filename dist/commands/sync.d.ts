@@ -1,1 +1,3 @@
-export declare function syncAction(): Promise<void>;
+export declare function syncAction(options?: {
+    dryRun?: boolean;
+}): Promise<void>;
