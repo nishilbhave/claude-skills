@@ -168,10 +168,10 @@ export function createInstalledPluginsJson(
   const pluginsDir = path.join(baseDir, "plugins");
   fse.ensureDirSync(pluginsDir);
 
-  const manifest: Record<string, unknown[]> = {};
+  const pluginsMap: Record<string, unknown[]> = {};
   for (const p of plugins) {
     const key = `${p.name}@${p.marketplace}`;
-    manifest[key] = [
+    pluginsMap[key] = [
       {
         installPath: p.installPath,
         version: p.version || "1.0.0",
@@ -179,6 +179,8 @@ export function createInstalledPluginsJson(
       },
     ];
   }
+
+  const manifest = { version: 2, plugins: pluginsMap };
 
   fs.writeFileSync(
     path.join(pluginsDir, "installed_plugins.json"),

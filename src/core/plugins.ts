@@ -41,10 +41,17 @@ export function readInstalledPlugins(): InstalledPlugin[] {
     return [];
   }
 
+  // v2 manifest wraps entries under a "plugins" key
+  const pluginsMap = (
+    typeof data.plugins === "object" && data.plugins !== null && !Array.isArray(data.plugins)
+      ? data.plugins
+      : data
+  ) as Record<string, unknown>;
+
   const seen = new Set<string>();
   const plugins: InstalledPlugin[] = [];
 
-  for (const [key, entries] of Object.entries(data)) {
+  for (const [key, entries] of Object.entries(pluginsMap)) {
     if (seen.has(key)) continue;
     seen.add(key);
 
