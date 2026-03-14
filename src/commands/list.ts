@@ -2,6 +2,7 @@ import { readRegistry, type Registry, type RegistryEntry } from "../core/registr
 import { resolveRegistries } from "../core/resolver.js";
 import { parseSkillFile } from "../core/skill.js";
 import { getProjectRegistryPath } from "../utils/paths.js";
+import { discoverAllPluginSkills, type DiscoveredPluginSkill } from "../core/plugins.js";
 import * as print from "../utils/print.js";
 
 function filterSkills(
@@ -126,4 +127,64 @@ export async function listAction(options: {
     printSection("PROJECT", projectSkills);
     console.log("");
   }
+
+  // Show undiscovered plugin skills
+  if (!options.active && !options.inactive) {
+    showUndiscoveredPluginSkills(global);
+  }
+}
+
+function showUndiscoveredPluginSkills(registry: Registry): void {
+  let discovered: DiscoveredPluginSkill[];
+  try {
+    discovered = discoverAllPluginSkills();
+  } catch {
+    return;
+  }
+
+  if (discovered.length === 0) return;
+
+  const registeredNames = new Set(registry.skills.map((s) => s.name));
+  const undiscovered = discovered.filter((d) => !registeredNames.has(d.skillName));
+
+  if (undiscovered.length === 0) return;
+
+  // Dedup by skill name (first plugin wins)
+  const seen = new Set<string>();
+  const unique: DiscoveredPluginSkill[] = [];
+  for (const d of undiscovered) {
+    if (seen.has(d.skillName)) continue;
+    seen.add(d.skillName);
+    unique.push(d);
+  }
+
+  // Group by plugin name
+  const byPlugin = new Map<string, DiscoveredPluginSkill[]>();
+  for (const d of unique) {
+    const key = d.plugin.name;
+    if (!byPlugin.has(key)) byPlugin.set(key, []);
+    byPlugin.get(key)!.push(d);
+  }
+
+  const count = unique.length;
+  console.log(
+    print.bold(
+      `AVAILABLE FROM PLUGINS (${count} skill${count !== 1 ? "s" : ""} — not yet registered)`
+    )
+  );
+
+  const rows: string[][] = [];
+  for (const [pluginName, skills] of byPlugin) {
+    for (const d of skills.sort((a, b) => a.skillName.localeCompare(b.skillName))) {
+      const parsed = parseSkillFile(d.skillDir);
+      const version = parsed?.meta.version || "—";
+      const desc = parsed?.meta.description?.replace(/\n/g, " ").slice(0, 50) || "—";
+      rows.push([`  •`, d.skillName, version, `[${pluginName}]`, desc]);
+    }
+  }
+
+  print.table(rows);
+  console.log("");
+  print.info(`Run 'claude-skills discover' to register these plugin skills.`);
+  console.log("");
 }
