@@ -10,11 +10,12 @@ import {
 import { parseSkillFile, validateSkill } from "../core/skill.js";
 import { addSkillToGroup } from "../core/groups.js";
 import { getSkillsDir } from "../utils/paths.js";
+import { isRemoteSource, parseSource, fetchGitHubSkill } from "../core/remote.js";
 import * as print from "../utils/print.js";
 
 export async function addAction(
   pathArg: string | undefined,
-  options: { all?: boolean }
+  options: { all?: boolean; pin?: string }
 ): Promise<void> {
   const registry = readRegistry();
 
@@ -27,13 +28,41 @@ export async function addAction(
     process.exit(1);
   }
 
-  const resolved = path.resolve(pathArg);
-  addSingleSkill(registry, resolved);
+  let resolved: string;
+  let registrySource = "local";
+  let pinnedVersion: string | null = null;
+
+  if (isRemoteSource(pathArg)) {
+    const source = parseSource(pathArg);
+    if (!source) {
+      print.error(`Unsupported remote source: ${pathArg}`);
+      process.exit(1);
+    }
+
+    try {
+      const result = await fetchGitHubSkill(source, { pin: options.pin });
+      resolved = result.skillDir;
+      registrySource = source.raw;
+      pinnedVersion = options.pin || null;
+    } catch (err: unknown) {
+      print.error((err as Error).message);
+      process.exit(1);
+    }
+  } else {
+    if (options.pin) {
+      print.warn("--pin has no effect on local skills — ignoring.");
+    }
+    resolved = path.resolve(pathArg);
+  }
+
+  addSingleSkill(registry, resolved, registrySource, pinnedVersion);
 }
 
 function addSingleSkill(
   registry: ReturnType<typeof readRegistry>,
-  skillPath: string
+  skillPath: string,
+  registrySource: string,
+  pinnedVersion: string | null
 ): void {
   if (!fs.existsSync(skillPath)) {
     print.error(`Path not found: ${skillPath}`);
@@ -61,8 +90,8 @@ function addSingleSkill(
     path: skillPath,
     active: existing?.active ?? false,
     scope: parsed.meta.scope || "global",
-    pinned_version: null,
-    source: "local",
+    pinned_version: pinnedVersion,
+    source: registrySource,
     added_at: existing?.added_at || new Date().toISOString(),
   };
 
@@ -114,8 +143,8 @@ function addAllSkills(
       path: dir,
       active: existing?.active ?? false,
       scope: parsed.meta.scope || "global",
-      pinned_version: null,
-      source: "local",
+      pinned_version: existing?.pinned_version ?? null,
+      source: existing?.source ?? "local",
       added_at: existing?.added_at || new Date().toISOString(),
     };
 

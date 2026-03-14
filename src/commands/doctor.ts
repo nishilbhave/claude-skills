@@ -11,7 +11,9 @@ import {
   getProjectRegistryPath,
   getClaudeMdPath,
   getCommandsDir,
+  getCacheDir,
 } from "../utils/paths.js";
+import { parseSource } from "../core/remote.js";
 import * as print from "../utils/print.js";
 
 interface CheckResult {
@@ -178,6 +180,38 @@ function checkContextBudget(): CheckResult {
   return { name, status: "pass", message: budget.message };
 }
 
+function checkRemoteSkillsCache(): CheckResult {
+  const name = "Remote skills cache";
+  const registry = readRegistry();
+  const remoteSkills = registry.skills.filter((s) => s.source !== "local");
+
+  if (remoteSkills.length === 0) {
+    return { name, status: "pass", message: "No remote skills registered." };
+  }
+
+  const cacheDir = getCacheDir();
+  const missingCache: string[] = [];
+
+  for (const entry of remoteSkills) {
+    const source = parseSource(entry.source);
+    if (!source) continue;
+
+    const expectedDir = path.join(cacheDir, `${source.user}-${source.repo}`);
+    if (!fs.existsSync(expectedDir)) {
+      missingCache.push(entry.name);
+    }
+  }
+
+  if (missingCache.length > 0) {
+    return {
+      name,
+      status: "warn",
+      message: `Cache missing for: ${missingCache.join(", ")}. Run 'claude-skills update --all' to re-fetch.`,
+    };
+  }
+  return { name, status: "pass", message: "All remote caches present." };
+}
+
 function checkGroupsIntegrity(): CheckResult {
   const name = "Groups integrity";
   const config = readConfig();
@@ -223,6 +257,7 @@ export async function doctorAction(): Promise<void> {
     results.push({ name: "CLAUDE.md in sync", status: "warn", message: "Skipped — registry invalid." });
     results.push({ name: "Context budget", status: "warn", message: "Skipped — registry invalid." });
     results.push({ name: "Groups integrity", status: "warn", message: "Skipped — registry invalid." });
+    results.push({ name: "Remote skills cache", status: "warn", message: "Skipped — registry invalid." });
   } else {
     // 3. Orphaned commands
     results.push(checkOrphanedCommands());
@@ -241,6 +276,9 @@ export async function doctorAction(): Promise<void> {
 
     // 8. Groups integrity
     results.push(checkGroupsIntegrity());
+
+    // 9. Remote skills cache
+    results.push(checkRemoteSkillsCache());
   }
 
   // Print results

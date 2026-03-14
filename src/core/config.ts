@@ -8,6 +8,7 @@ export interface SkillsConfig {
   auto_sync: boolean;
   backup_count: number;
   groups: Record<string, string[]>;
+  registry_sources: string[];
 }
 
 const defaults: SkillsConfig = {
@@ -16,6 +17,7 @@ const defaults: SkillsConfig = {
   auto_sync: true,
   backup_count: 5,
   groups: {},
+  registry_sources: [],
 };
 
 export function readConfig(): SkillsConfig {

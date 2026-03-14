@@ -33,6 +33,10 @@ export function getBackupDir(): string {
   return path.join(getBaseDir(), "skills-backup");
 }
 
+export function getCacheDir(): string {
+  return path.join(getBaseDir(), "skills-cache");
+}
+
 export function getSkillFilePath(dir: string): string | null {
   const upper = path.join(dir, "SKILL.md");
   if (fs.existsSync(upper)) return upper;

@@ -10,12 +10,13 @@ import {
 } from "../core/registry.js";
 import { parseSkillFile } from "../core/skill.js";
 import { getSkillsDir } from "../utils/paths.js";
+import { isRemoteSource, parseSource, fetchGitHubSkill } from "../core/remote.js";
 import { syncAction } from "./sync.js";
 import * as print from "../utils/print.js";
 
 export async function installAction(
   pathArg: string | undefined,
-  options: { all?: boolean }
+  options: { all?: boolean; pin?: string }
 ): Promise<void> {
   const registry = readRegistry();
 
@@ -28,7 +29,33 @@ export async function installAction(
     process.exit(1);
   }
 
-  const resolved = path.resolve(pathArg);
+  let resolved: string;
+  let registrySource = "local";
+  let pinnedVersion: string | null = null;
+
+  if (isRemoteSource(pathArg)) {
+    const source = parseSource(pathArg);
+    if (!source) {
+      print.error(`Unsupported remote source: ${pathArg}`);
+      process.exit(1);
+    }
+
+    try {
+      const result = await fetchGitHubSkill(source, { pin: options.pin });
+      resolved = result.skillDir;
+      registrySource = source.raw;
+      pinnedVersion = options.pin || null;
+    } catch (err: unknown) {
+      print.error((err as Error).message);
+      process.exit(1);
+    }
+  } else {
+    if (options.pin) {
+      print.warn("--pin has no effect on local skills — ignoring.");
+    }
+    resolved = path.resolve(pathArg);
+  }
+
   if (!fs.existsSync(resolved)) {
     print.error(`Path not found: ${resolved}`);
     process.exit(1);
@@ -45,8 +72,8 @@ export async function installAction(
     path: resolved,
     active: true,
     scope: parsed.meta.scope || "global",
-    pinned_version: null,
-    source: "local",
+    pinned_version: pinnedVersion,
+    source: registrySource,
     added_at: new Date().toISOString(),
   };
 
@@ -77,14 +104,15 @@ async function installAll(
     const parsed = parseSkillFile(dir);
     if (!parsed) continue;
 
+    const existing = findSkill(registry, parsed.meta.name);
     const entry: RegistryEntry = {
       name: parsed.meta.name,
       path: dir,
       active: true,
       scope: parsed.meta.scope || "global",
-      pinned_version: null,
-      source: "local",
-      added_at: findSkill(registry, parsed.meta.name)?.added_at || new Date().toISOString(),
+      pinned_version: existing?.pinned_version ?? null,
+      source: existing?.source ?? "local",
+      added_at: existing?.added_at || new Date().toISOString(),
     };
 
     addSkill(registry, entry);

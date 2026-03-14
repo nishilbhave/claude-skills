@@ -31,6 +31,9 @@ export async function infoAction(name: string): Promise<void> {
   if (meta.description) {
     console.log(`  ${print.bold("description:")} ${meta.description.replace(/\n/g, " ").slice(0, 200)}`);
   }
+  if (entry.pinned_version) {
+    console.log(`  ${print.bold("pinned:")}     ${entry.pinned_version}`);
+  }
   console.log(`  ${print.bold("added:")}      ${entry.added_at.slice(0, 10)}`);
   console.log(`  ${print.bold("source:")}     ${entry.source}`);
 

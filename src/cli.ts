@@ -11,6 +11,7 @@ import { initAction } from "./commands/init.js";
 import { infoAction } from "./commands/info.js";
 import { restoreAction } from "./commands/restore.js";
 import { doctorAction } from "./commands/doctor.js";
+import { updateAction } from "./commands/update.js";
 import {
   groupCreateAction,
   groupEnableAction,
@@ -36,6 +37,7 @@ program
   .command("add [path]")
   .description("Register a skill into the registry (inactive by default)")
   .option("--all", "Scan ~/.claude/skills/ and register all found skills")
+  .option("--pin <version>", "Pin to a specific git tag (remote skills only)")
   .option("-g, --global", "Target global registry")
   .option("-p, --project", "Target project registry")
   .action(addAction);
@@ -44,6 +46,7 @@ program
   .command("install [path]")
   .description("Add, enable, and sync a skill in one step")
   .option("--all", "Install all skills from ~/.claude/skills/")
+  .option("--pin <version>", "Pin to a specific git tag (remote skills only)")
   .option("-g, --global", "Target global registry")
   .option("-p, --project", "Target project registry")
   .action(installAction);
@@ -100,6 +103,13 @@ program
   .command("doctor")
   .description("Run diagnostic checks on your skills setup")
   .action(doctorAction);
+
+program
+  .command("update [name]")
+  .description("Update remote skills to latest version or a specific tag")
+  .option("--all", "Update all remote skills")
+  .option("--pin <version>", "Pin to a specific git tag, or 'latest' to unpin")
+  .action(updateAction);
 
 // Group commands
 const group = program

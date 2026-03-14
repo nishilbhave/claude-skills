@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { execFileSync } from "node:child_process";
 import fse from "fs-extra";
 import { writeRegistry, type RegistryEntry, type Registry } from "../src/core/registry.js";
 import { writeConfig, type SkillsConfig } from "../src/core/config.js";
@@ -66,14 +67,19 @@ export function createTestRegistry(
   writeRegistry(registry, registryPath);
 }
 
-export function makeEntry(name: string, skillPath: string, active = false): RegistryEntry {
+export function makeEntry(
+  name: string,
+  skillPath: string,
+  active = false,
+  opts?: { source?: string; pinned_version?: string | null }
+): RegistryEntry {
   return {
     name,
     path: skillPath,
     active,
     scope: "global",
-    pinned_version: null,
-    source: "local",
+    pinned_version: opts?.pinned_version ?? null,
+    source: opts?.source ?? "local",
     added_at: new Date().toISOString(),
   };
 }
@@ -85,6 +91,71 @@ export function defaultConfig(overrides?: Partial<SkillsConfig>): SkillsConfig {
     auto_sync: false,
     backup_count: 5,
     groups: {},
+    registry_sources: [],
     ...overrides,
   };
+}
+
+export interface GitFixture {
+  repoDir: string;
+  skillPath: string;
+}
+
+/**
+ * Create a real git repo with a skill directory, two commits, and two tags.
+ * Used by remote.test.ts and update.test.ts.
+ */
+export function createGitFixture(baseDir: string): GitFixture {
+  const repoDir = path.join(baseDir, "fixture-repo");
+  fse.ensureDirSync(repoDir);
+
+  // Init repo
+  execFileSync("git", ["init"], { cwd: repoDir, stdio: "pipe" });
+  execFileSync("git", ["config", "user.email", "test@test.com"], {
+    cwd: repoDir,
+    stdio: "pipe",
+  });
+  execFileSync("git", ["config", "user.name", "Test"], {
+    cwd: repoDir,
+    stdio: "pipe",
+  });
+
+  // Create skill directory
+  const skillPath = path.join(repoDir, "skills", "test-skill");
+  fse.ensureDirSync(skillPath);
+
+  const skillContent = [
+    "---",
+    "name: test-skill",
+    "description: A test skill from git",
+    "version: 1.0.0",
+    "---",
+    "",
+    "# test-skill",
+    "",
+    "Test skill content v1.",
+  ].join("\n");
+
+  fs.writeFileSync(path.join(skillPath, "SKILL.md"), skillContent, "utf-8");
+
+  // First commit + tag
+  execFileSync("git", ["add", "."], { cwd: repoDir, stdio: "pipe" });
+  execFileSync("git", ["commit", "-m", "Initial commit"], {
+    cwd: repoDir,
+    stdio: "pipe",
+  });
+  execFileSync("git", ["tag", "1.0.0"], { cwd: repoDir, stdio: "pipe" });
+
+  // Update skill + second commit + tag
+  const skillContentV2 = skillContent.replace("v1", "v2").replace("1.0.0", "1.1.0");
+  fs.writeFileSync(path.join(skillPath, "SKILL.md"), skillContentV2, "utf-8");
+
+  execFileSync("git", ["add", "."], { cwd: repoDir, stdio: "pipe" });
+  execFileSync("git", ["commit", "-m", "Bump to 1.1.0"], {
+    cwd: repoDir,
+    stdio: "pipe",
+  });
+  execFileSync("git", ["tag", "1.1.0"], { cwd: repoDir, stdio: "pipe" });
+
+  return { repoDir, skillPath };
 }

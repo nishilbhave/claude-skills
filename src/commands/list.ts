@@ -32,7 +32,8 @@ function printSection(label: string, skills: RegistryEntry[]): void {
     const version = parsed?.meta.version || "—";
     const desc =
       parsed?.meta.description?.replace(/\n/g, " ").slice(0, 60) || "—";
-    rows.push([`  ${status}`, entry.name, version, desc]);
+    const sourceTag = entry.source.startsWith("github:") ? " [gh]" : "";
+    rows.push([`  ${status}`, `${entry.name}${sourceTag}`, version, desc]);
   }
 
   print.table(rows);
