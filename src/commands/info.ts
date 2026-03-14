@@ -36,6 +36,10 @@ export async function infoAction(name: string): Promise<void> {
   }
   console.log(`  ${print.bold("added:")}      ${entry.added_at.slice(0, 10)}`);
   console.log(`  ${print.bold("source:")}     ${entry.source}`);
+  if (entry.source.startsWith("plugin:")) {
+    const pluginId = entry.source.slice("plugin:".length);
+    console.log(`  ${print.bold("plugin:")}     ${pluginId}`);
+  }
 
   const contentKb = Math.round(Buffer.byteLength(parsed.content, "utf-8") / 1024 * 10) / 10;
   console.log(`  ${print.bold("size:")}       ${contentKb}KB`);

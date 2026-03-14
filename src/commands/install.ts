@@ -11,17 +11,18 @@ import {
 import { parseSkillFile } from "../core/skill.js";
 import { getSkillsDir } from "../utils/paths.js";
 import { isRemoteSource, parseSource, fetchGitHubSkill } from "../core/remote.js";
+import { discoverAllPluginSkills, isPluginSource } from "../core/plugins.js";
 import { syncAction } from "./sync.js";
 import * as print from "../utils/print.js";
 
 export async function installAction(
   pathArg: string | undefined,
-  options: { all?: boolean; pin?: string }
+  options: { all?: boolean; pin?: string; plugins?: boolean }
 ): Promise<void> {
   const registry = readRegistry();
 
   if (options.all) {
-    return installAll(registry);
+    return installAll(registry, options.plugins);
   }
 
   if (!pathArg) {
@@ -86,7 +87,8 @@ export async function installAction(
 }
 
 async function installAll(
-  registry: ReturnType<typeof readRegistry>
+  registry: ReturnType<typeof readRegistry>,
+  includePlugins?: boolean
 ): Promise<void> {
   const skillsDir = getSkillsDir();
   if (!fs.existsSync(skillsDir)) {
@@ -119,7 +121,48 @@ async function installAll(
     count++;
   }
 
+  // Also scan installed plugins if --plugins flag is set
+  let pluginCount = 0;
+  if (includePlugins) {
+    const discovered = discoverAllPluginSkills();
+    const seenNames = new Set<string>();
+
+    for (const d of discovered) {
+      const parsed = parseSkillFile(d.skillDir);
+      if (!parsed) continue;
+
+      const skillName = parsed.meta.name;
+
+      // Cross-plugin dedup
+      if (seenNames.has(skillName)) continue;
+      seenNames.add(skillName);
+
+      // Local priority: skip if a local skill already exists with this name
+      const existing = findSkill(registry, skillName);
+      if (existing && !isPluginSource(existing.source)) continue;
+
+      const source = `plugin:${d.plugin.name}@${d.plugin.marketplace}`;
+      const entry: RegistryEntry = {
+        name: skillName,
+        path: d.skillDir,
+        active: true,
+        scope: parsed.meta.scope || "global",
+        pinned_version: d.plugin.version,
+        source,
+        added_at: existing?.added_at || new Date().toISOString(),
+      };
+
+      addSkill(registry, entry);
+      pluginCount++;
+    }
+  }
+
   writeRegistry(registry);
-  print.success(`Installed and activated ${count} skills.`);
+  const total = count + pluginCount;
+  if (pluginCount > 0) {
+    print.success(`Installed and activated ${total} skills (${pluginCount} from plugins).`);
+  } else {
+    print.success(`Installed and activated ${count} skills.`);
+  }
   await syncAction();
 }

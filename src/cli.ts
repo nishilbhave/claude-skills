@@ -12,6 +12,7 @@ import { infoAction } from "./commands/info.js";
 import { restoreAction } from "./commands/restore.js";
 import { doctorAction } from "./commands/doctor.js";
 import { updateAction } from "./commands/update.js";
+import { discoverAction } from "./commands/discover.js";
 import {
   groupCreateAction,
   groupEnableAction,
@@ -37,6 +38,7 @@ program
   .command("add [path]")
   .description("Register a skill into the registry (inactive by default)")
   .option("--all", "Scan ~/.claude/skills/ and register all found skills")
+  .option("--plugins", "Also scan installed plugins for skills (use with --all)")
   .option("--pin <version>", "Pin to a specific git tag (remote skills only)")
   .option("-g, --global", "Target global registry")
   .option("-p, --project", "Target project registry")
@@ -46,6 +48,7 @@ program
   .command("install [path]")
   .description("Add, enable, and sync a skill in one step")
   .option("--all", "Install all skills from ~/.claude/skills/")
+  .option("--plugins", "Also scan installed plugins for skills (use with --all)")
   .option("--pin <version>", "Pin to a specific git tag (remote skills only)")
   .option("-g, --global", "Target global registry")
   .option("-p, --project", "Target project registry")
@@ -110,6 +113,13 @@ program
   .option("--all", "Update all remote skills")
   .option("--pin <version>", "Pin to a specific git tag, or 'latest' to unpin")
   .action(updateAction);
+
+program
+  .command("discover")
+  .description("Discover skills from installed Claude Code plugins")
+  .option("--json", "Output discovered skills as JSON without modifying registry")
+  .option("--dry-run", "Show what would change without writing registry")
+  .action(discoverAction);
 
 // Group commands
 const group = program

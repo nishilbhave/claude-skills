@@ -96,6 +96,97 @@ export function defaultConfig(overrides?: Partial<SkillsConfig>): SkillsConfig {
   };
 }
 
+export interface TestPluginOpts {
+  skills?: string[];
+  version?: string;
+  skillsLocation?: "plugin-json" | "claude-skills" | "skills-dir";
+}
+
+export function createTestPlugin(
+  baseDir: string,
+  pluginName: string,
+  marketplace: string,
+  opts?: TestPluginOpts
+): string {
+  const version = opts?.version || "1.0.0";
+  const installPath = path.join(baseDir, "plugins", "cache", `${pluginName}@${version}`);
+  fse.ensureDirSync(installPath);
+
+  const skills = opts?.skills || ["sample-skill"];
+  const location = opts?.skillsLocation || "plugin-json";
+
+  let skillsRoot: string;
+
+  if (location === "plugin-json") {
+    // Create .claude-plugin/plugin.json with skills field
+    const pluginDir = path.join(installPath, ".claude-plugin");
+    fse.ensureDirSync(pluginDir);
+    fs.writeFileSync(
+      path.join(pluginDir, "plugin.json"),
+      JSON.stringify({ name: pluginName, skills: "./.claude/skills" }, null, 2),
+      "utf-8"
+    );
+    skillsRoot = path.join(installPath, ".claude", "skills");
+  } else if (location === "claude-skills") {
+    skillsRoot = path.join(installPath, ".claude", "skills");
+  } else {
+    skillsRoot = path.join(installPath, "skills");
+  }
+
+  fse.ensureDirSync(skillsRoot);
+
+  for (const skillName of skills) {
+    const skillDir = path.join(skillsRoot, skillName);
+    fse.ensureDirSync(skillDir);
+    const content = [
+      "---",
+      `name: ${skillName}`,
+      `description: ${skillName} from ${pluginName}`,
+      `version: ${version}`,
+      "---",
+      "",
+      `# ${skillName}`,
+      "",
+      `${skillName} content from plugin ${pluginName}.`,
+    ].join("\n");
+    fs.writeFileSync(path.join(skillDir, "SKILL.md"), content, "utf-8");
+  }
+
+  return installPath;
+}
+
+export function createInstalledPluginsJson(
+  baseDir: string,
+  plugins: Array<{
+    name: string;
+    marketplace: string;
+    installPath: string;
+    version?: string;
+    scope?: string;
+  }>
+): void {
+  const pluginsDir = path.join(baseDir, "plugins");
+  fse.ensureDirSync(pluginsDir);
+
+  const manifest: Record<string, unknown[]> = {};
+  for (const p of plugins) {
+    const key = `${p.name}@${p.marketplace}`;
+    manifest[key] = [
+      {
+        installPath: p.installPath,
+        version: p.version || "1.0.0",
+        scope: p.scope || "global",
+      },
+    ];
+  }
+
+  fs.writeFileSync(
+    path.join(pluginsDir, "installed_plugins.json"),
+    JSON.stringify(manifest, null, 2),
+    "utf-8"
+  );
+}
+
 export interface GitFixture {
   repoDir: string;
   skillPath: string;

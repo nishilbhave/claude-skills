@@ -14,6 +14,7 @@ import {
   getCacheDir,
 } from "../utils/paths.js";
 import { parseSource } from "../core/remote.js";
+import { isPluginSource } from "../core/plugins.js";
 import * as print from "../utils/print.js";
 
 interface CheckResult {
@@ -212,6 +213,32 @@ function checkRemoteSkillsCache(): CheckResult {
   return { name, status: "pass", message: "All remote caches present." };
 }
 
+function checkPluginSkillsExist(): CheckResult {
+  const name = "Plugin skill paths";
+  const registry = readRegistry();
+  const pluginSkills = registry.skills.filter((s) => isPluginSource(s.source));
+
+  if (pluginSkills.length === 0) {
+    return { name, status: "pass", message: "No plugin skills registered." };
+  }
+
+  const missing: string[] = [];
+  for (const entry of pluginSkills) {
+    if (!fs.existsSync(entry.path)) {
+      missing.push(entry.name);
+    }
+  }
+
+  if (missing.length > 0) {
+    return {
+      name,
+      status: "warn",
+      message: `Missing plugin skill paths: ${missing.join(", ")}. Run 'claude-skills discover' to refresh.`,
+    };
+  }
+  return { name, status: "pass", message: "All plugin skill paths exist." };
+}
+
 function checkGroupsIntegrity(): CheckResult {
   const name = "Groups integrity";
   const config = readConfig();
@@ -258,6 +285,7 @@ export async function doctorAction(): Promise<void> {
     results.push({ name: "Context budget", status: "warn", message: "Skipped — registry invalid." });
     results.push({ name: "Groups integrity", status: "warn", message: "Skipped — registry invalid." });
     results.push({ name: "Remote skills cache", status: "warn", message: "Skipped — registry invalid." });
+    results.push({ name: "Plugin skill paths", status: "warn", message: "Skipped — registry invalid." });
   } else {
     // 3. Orphaned commands
     results.push(checkOrphanedCommands());
@@ -279,6 +307,9 @@ export async function doctorAction(): Promise<void> {
 
     // 9. Remote skills cache
     results.push(checkRemoteSkillsCache());
+
+    // 10. Plugin skill paths
+    results.push(checkPluginSkillsExist());
   }
 
   // Print results

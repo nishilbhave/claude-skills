@@ -32,7 +32,9 @@ function printSection(label: string, skills: RegistryEntry[]): void {
     const version = parsed?.meta.version || "—";
     const desc =
       parsed?.meta.description?.replace(/\n/g, " ").slice(0, 60) || "—";
-    const sourceTag = entry.source.startsWith("github:") ? " [gh]" : "";
+    let sourceTag = "";
+    if (entry.source.startsWith("github:")) sourceTag = " [gh]";
+    else if (entry.source.startsWith("plugin:")) sourceTag = " [plugin]";
     rows.push([`  ${status}`, `${entry.name}${sourceTag}`, version, desc]);
   }
 

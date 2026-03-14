@@ -37,6 +37,10 @@ export function getCacheDir(): string {
   return path.join(getBaseDir(), "skills-cache");
 }
 
+export function getPluginsDir(): string {
+  return path.join(getBaseDir(), "plugins");
+}
+
 export function getSkillFilePath(dir: string): string | null {
   const upper = path.join(dir, "SKILL.md");
   if (fs.existsSync(upper)) return upper;
