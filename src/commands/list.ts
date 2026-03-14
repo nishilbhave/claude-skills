@@ -28,15 +28,22 @@ function printSection(label: string, skills: RegistryEntry[]): void {
 
   const rows: string[][] = [];
   for (const entry of skills) {
-    const status = entry.active ? "✓" : "✗";
+    const status = entry.active
+      ? print.green("✓")
+      : print.dimText("✗");
     const parsed = parseSkillFile(entry.path);
-    const version = parsed?.meta.version || "—";
-    const desc =
+    const version = print.dimText(parsed?.meta.version || "—");
+    const rawDesc =
       parsed?.meta.description?.replace(/\n/g, " ").slice(0, 60) || "—";
+    const desc = print.dimText(rawDesc);
     let sourceTag = "";
-    if (entry.source.startsWith("github:")) sourceTag = " [gh]";
-    else if (entry.source.startsWith("plugin:")) sourceTag = " [plugin]";
-    rows.push([`  ${status}`, `${entry.name}${sourceTag}`, version, desc]);
+    if (entry.source.startsWith("github:")) sourceTag = print.cyan(" [gh]");
+    else if (entry.source.startsWith("plugin:")) {
+      const pluginName = entry.source.replace("plugin:", "").split("@")[0];
+      sourceTag = print.cyan(` [${pluginName}]`);
+    }
+    const name = print.boldText(entry.name) + sourceTag;
+    rows.push([`  ${status}`, name, version, desc]);
   }
 
   print.table(rows);
@@ -177,9 +184,10 @@ function showUndiscoveredPluginSkills(registry: Registry): void {
   for (const [pluginName, skills] of byPlugin) {
     for (const d of skills.sort((a, b) => a.skillName.localeCompare(b.skillName))) {
       const parsed = parseSkillFile(d.skillDir);
-      const version = parsed?.meta.version || "—";
-      const desc = parsed?.meta.description?.replace(/\n/g, " ").slice(0, 50) || "—";
-      rows.push([`  •`, d.skillName, version, `[${pluginName}]`, desc]);
+      const version = print.dimText(parsed?.meta.version || "—");
+      const rawDesc = parsed?.meta.description?.replace(/\n/g, " ").slice(0, 50) || "—";
+      const desc = print.dimText(rawDesc);
+      rows.push([`  ${print.dimText("•")}`, print.boldText(d.skillName), version, print.cyan(`[${pluginName}]`), desc]);
     }
   }
 
